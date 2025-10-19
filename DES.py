@@ -100,8 +100,18 @@ class DES:
     SHIFTS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
     
     def __init__(self, key):
-        self.key = key
-        self.subkeys = self.generate_subkeys(key)
+        if isinstance(key, str):
+            key = key.encode()
+        if not isinstance(key, (bytes, bytearray)):
+            raise TypeError("key must be bytes or str")
+        # Jika lebih dari 8 byte: ambil 8 terdepan
+        if len(key) > 8:
+            key = key[:8]
+        # Jika kurang dari 8 byte: error (agar jelas dan konsisten)
+        if len(key) < 8:
+            raise ValueError("key harus minimal 8 byte; jika lebih ambil 8 terdepan")
+        self.key = bytes(key)
+        self.subkeys = self.generate_subkeys(self.key)
     
     def text_to_bits(self, text):
         """Convert text to bit array"""
@@ -149,7 +159,7 @@ class DES:
         R_expanded = self.permute(R, self.E)
         R_xor = self.xor(R_expanded, subkey)
         
-
+        # S-Box substitution
         output = []
         for i in range(8):
             block = R_xor[i*6:(i+1)*6]
@@ -214,32 +224,37 @@ class DES:
         return self.unpad(plaintext)
 
 
+# ========== DEMO PENGGUNAAN ==========
 if __name__ == "__main__":
     import sys
-
-    print("Mode interaktif langsung — masukkan key (8 karakter) dan plaintext.")
-    key_input = input("Key (8 chars): ")
-    if len(key_input.encode()) != 8:
-        print("Error: key harus 8 byte/karakter.")
-        sys.exit(1)
-    key = key_input.encode()
+    import hashlib
 
     plaintext = input("Plaintext: ")
     if plaintext == "":
         print("Tidak ada plaintext. Keluar.")
         sys.exit(0)
 
-    des = DES(key)
+    key_input = input("Key: ")
+    if key_input == "":
+        print("Key kosong. Keluar.")
+        sys.exit(0)
+    des = DES(key_input)
+
     try:
         ciphertext = des.encrypt(plaintext)
         decrypted = des.decrypt(ciphertext)
     except Exception as e:
         print("Error saat enkripsi/dekripsi:", e)
         sys.exit(1)
-
+ 
     print("-" * 50)
     print("Plaintext :", plaintext)
-    print("Key       :", key)
+ 
+    try:
+        print("Key (used):", des.key.decode())
+    except:
+        print("Key (used, repr):", repr(des.key))
+    print("Key (hex) :", des.key.hex())
     print("Cipherhex :", ciphertext.hex())
     try:
         print("Decrypted :", decrypted.decode())
